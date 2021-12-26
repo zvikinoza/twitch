@@ -1,19 +1,44 @@
-from src import database
-from src.constants import TWITCH_DATABASE
+from abc import ABC
+
+from src.channel import TwitchChannel, Channel
+from src.database import TwitchDatabase
+from src.user import TwitchUser, Subscriber
 
 
-class Twitch:
-    def __init__(self) -> None:
-        self.__db = database.connect(TWITCH_DATABASE)
-
+class StreamingPlatform(ABC):
     def subscribe(self, username: str, channel: str) -> None:
-        user_notifier = self.__db.get_user(username)
-        channel_event_manager = self.__db.get_channel(channel)
-        channel_event_manager.subscribe(user_notifier)
+        raise NotImplementedError
 
     def publish(self, channel: str) -> None:
-        channel_event_manager = self.__db.get_channel(channel)
-        channel_event_manager.publish()
+        raise NotImplementedError
 
     def exit(self) -> None:
-        self.__db.close(TWITCH_DATABASE)
+        pass
+
+
+class Twitch(StreamingPlatform):
+    def __init__(self, db: TwitchDatabase) -> None:
+        self.__db = db
+        self.__channels: dict[str, Channel] = {}
+        self.__subscribers: dict[str, Subscriber] = {}
+        for username, channel in self.__db.items():
+            self.__add_subscription(username, channel)
+
+    def subscribe(self, username: str, channel: str) -> None:
+        self.__db.put(channel, username)
+        self.__add_subscription(username, channel)
+
+    def publish(self, channel: str) -> None:
+        if channel not in self.__channels:
+            return
+        self.__channels[channel].publish()
+
+    def exit(self) -> None:
+        self.__db.close()
+
+    def __add_subscription(self, username: str, channel: str) -> None:
+        if username not in self.__subscribers:
+            self.__subscribers[username] = TwitchUser(username)
+        if channel not in self.__channels:
+            self.__channels[channel] = TwitchChannel(channel)
+        self.__channels[channel].subscribe(self.__subscribers[username])

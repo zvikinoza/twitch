@@ -1,32 +1,25 @@
 from abc import ABC
 
-from src.user import EventListener, SubscribeListener, PublishListener
+from src.user import Subscriber
 
 
-class EventManager(ABC):
-    def subscribe(self, listener: EventListener) -> None:
-        pass
+class Channel(ABC):
+    def subscribe(self, subscriber: Subscriber) -> None:
+        raise NotImplementedError
 
     def publish(self) -> None:
-        pass
+        raise NotImplementedError
 
 
-class Channel(EventManager):
-    def __init__(self, name: str, subscribe_listeners: list[SubscribeListener]) -> None:
+class TwitchChannel(Channel):
+    def __init__(self, name: str) -> None:
         self.__name = name
-        self.__subscribe_listeners = subscribe_listeners
-        self.__publish_listeners = list()
+        self.__subscribers: list[Subscriber] = []
 
-    def subscribe(self, user: PublishListener) -> None:
-        self.__publish_listeners.append(user)
-        for listener in self.__subscribe_listeners:
-            listener.notify(self.__name, user.get_name())
+    def subscribe(self, subscriber: Subscriber) -> None:
+        self.__subscribers.append(subscriber)
 
     def publish(self) -> None:
         print(f"Notifying subscribers of {self.__name}:")
-        for listener in self.__publish_listeners:
-            listener.notify()
-
-    @property
-    def get_name(self) -> str:
-        return self.__name
+        for subscriber in self.__subscribers:
+            subscriber.notify()
